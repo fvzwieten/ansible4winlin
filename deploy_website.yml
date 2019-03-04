@@ -1,0 +1,44 @@
+---
+- name: Create website on linux webserver(s)
+  hosts: role_webserver:&linux
+  become: yes
+  vars_files:
+    database_credentials.yml
+  vars:
+    dbserver: "{{ groups['role_dbserver'][0] }}"
+
+  tasks:
+
+  - name: check out website from git
+    git:
+      repo: https://github.com/fvzwieten/simple_db_app.git
+      dest: /var/www/html/
+      force: yes
+
+  - name: Create website configuration file
+    template:
+      src: config.php.j2
+      dest: /var/www/html/config.php
+
+  - name: Deploy web site on Windows web servers
+    hosts: role_webserver:&windows
+    vars_files:
+      winrm_vars.yml
+    vars:
+      dbserver: "{{ groups['role_dbserver'][0] }}"
+
+    tasks:
+    - name: Purge website files from directory
+      win_file:
+        path: C:\inetpub\wwwroot\
+        state: absent
+
+    - name: check out website from git
+      win_command: git clone https://github.com/fvzwieten/simple_db_app.git C:\inetpub\wwwroot
+    args:
+        chdir: C:\Program Files\Git\bin
+ 
+    - name: define config for website 
+      win_template:
+        src: config.php.j2
+        dest: C:\inetpub\wwwroot\config.php
